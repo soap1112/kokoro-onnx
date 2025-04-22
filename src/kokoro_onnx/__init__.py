@@ -49,7 +49,9 @@ class Kokoro:
 
         log.debug(f"Providers: {providers}")
         self.sess = rt.InferenceSession(model_path, providers=providers)
-        self.voices: np.ndarray = np.load(voices_path, allow_pickle=True)
+        # Load voices.json as JSON
+        with open(voices_path, 'r') as f:
+            self.voices: dict = json.load(f)
 
         vocab = self._load_vocab(vocab_config)
         self.tokenizer = Tokenizer(espeak_config, vocab=vocab)
@@ -66,7 +68,9 @@ class Kokoro:
         instance.sess = session
         instance.config = KoKoroConfig(session._model_path, voices_path, espeak_config)
         instance.config.validate()
-        instance.voices = np.load(voices_path)
+        # Load voices.json as JSON
+        with open(voices_path, 'r') as f:
+            instance.voices: dict = json.load(f)
 
         vocab = instance._load_vocab(vocab_config)
         instance.tokenizer = Tokenizer(espeak_config, vocab=vocab)
@@ -105,19 +109,19 @@ class Kokoro:
             f"Context length is {MAX_PHONEME_LENGTH}, but leave room for the pad token 0 at the start & end"
         )
 
-        voice = voice[len(tokens)]
+        voice_embedding = np.array(voice[len(tokens)], dtype=np.float32)
         tokens = [[0, *tokens, 0]]
         if "input_ids" in [i.name for i in self.sess.get_inputs()]:
             # Newer export versions
             inputs = {
                 "input_ids": tokens,
-                "style": np.array(voice, dtype=np.float32),
+                "style": voice_embedding,
                 "speed": np.array([speed], dtype=np.int32),
             }
         else:
             inputs = {
                 "tokens": tokens,
-                "style": voice,
+                "style": voice_embedding,
                 "speed": np.ones(1, dtype=np.float32) * speed,
             }
 
@@ -131,7 +135,7 @@ class Kokoro:
         return audio, SAMPLE_RATE
 
     def get_voice_style(self, name: str) -> NDArray[np.float32]:
-        return self.voices[name]
+        return np.array(self.voices[name], dtype=np.float32)
 
     def _split_phonemes(self, phonemes: str) -> list[str]:
         """
