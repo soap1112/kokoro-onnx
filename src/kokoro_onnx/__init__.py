@@ -49,7 +49,7 @@ class Kokoro:
 
         log.debug(f"Providers: {providers}")
         self.sess = rt.InferenceSession(model_path, providers=providers)
-        self.voices: np.ndarray = np.load(voices_path)
+        self.voices: np.ndarray = np.load(voices_path, allow_pickle=True)
 
         vocab = self._load_vocab(vocab_config)
         self.tokenizer = Tokenizer(espeak_config, vocab=vocab)
